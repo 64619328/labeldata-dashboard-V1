@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>标注管理控制台 - 管理者大盘</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./styles.css?v=20260527-align1" />
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#e60023',
+                        secondary: '#64748b',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                        background: '#fbfbf9',
+                        surface: '#ffffff',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="flex h-screen overflow-hidden antialiased text-gray-800 bg-[#fbfbf9]">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-slate-900 text-white flex flex-col hidden md:flex transition-all duration-300 flex-shrink-0">
+        <div class="h-16 flex items-center px-6 border-b border-slate-800 font-bold text-xl tracking-wider">
+            <i class="fa-solid fa-layer-group text-primary mr-3"></i> DataOps Pro
+        </div>
+        <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto" id="sidebar-nav">
+            <button class="nav-item flex items-center w-full px-4 py-3 bg-primary/10 text-primary rounded-lg transition-colors active text-left" data-tab-target="overview">
+                <i class="fa-solid fa-chart-pie w-6"></i> 管理大盘
+            </button>
+            <button class="nav-item flex items-center w-full px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors text-left" data-tab-target="suppliers">
+                <i class="fa-solid fa-building-user w-6"></i> 供应商管理
+            </button>
+            <button class="nav-item flex items-center w-full px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors text-left" data-tab-target="tasks">
+                <i class="fa-solid fa-list-check w-6"></i> 任务明细
+            </button>
+            <button class="nav-item flex items-center w-full px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors text-left" data-tab-target="finance">
+                <i class="fa-solid fa-file-invoice-dollar w-6"></i> 结算与预算
+            </button>
+            <button class="nav-item flex items-center w-full px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors text-left" data-tab-target="pending">
+                <i class="fa-solid fa-database w-6"></i> 数据能力建设
+            </button>
+        </nav>
+        <div class="p-4 border-t border-slate-800">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm border border-gray-200">A</div>
+                <div>
+                    <p class="text-sm font-medium">管理员</p>
+                    <p class="text-xs text-slate-400">数据标注中心</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col overflow-hidden relative">
+        <!-- Header -->
+        <header class="bg-white border-b border-gray-200 flex items-center justify-between gap-4 px-6 py-3 z-10 shadow-sm flex-shrink-0">
+            <div class="flex items-center gap-4 flex-shrink-0">
+                <button class="md:hidden text-gray-500 hover:text-gray-700"><i class="fa-solid fa-bars text-xl"></i></button>
+                <h1 id="header-title" class="text-lg font-bold text-slate-900 whitespace-nowrap">标注平台管理端数据看板系统</h1>
+            </div>
+            <div class="flex items-center justify-end gap-3 min-w-0 flex-1">
+                <div class="inline-flex rounded-lg bg-gray-100 p-1 text-sm flex-shrink-0">
+                    <button class="toolbar-range-button px-3 py-1.5 rounded-md font-medium text-gray-600" type="button" data-overview-range="7d">近7天</button>
+                    <button class="toolbar-range-button bg-white text-slate-900 shadow-sm px-3 py-1.5 rounded-md font-medium" type="button" data-overview-range="30d">近30天</button>
+                    <button class="toolbar-range-button px-3 py-1.5 rounded-md font-medium text-gray-600" type="button" data-overview-range="3m">近3个月</button>
+                    <button class="toolbar-range-button px-3 py-1.5 rounded-md font-medium text-gray-600" type="button" data-overview-range="6m">近6个月</button>
+                </div>
+                <button id="refresh-data-source" class="inline-flex items-center gap-2 bg-white border border-gray-200 px-4 py-2 rounded-lg text-sm text-slate-700 hover:bg-gray-50 font-medium flex-shrink-0" type="button">
+                    <i class="fa-solid fa-rotate-right"></i> 刷新数据源
+                </button>
+                <button id="global-reset" class="inline-flex items-center gap-2 bg-white border border-gray-200 px-4 py-2 rounded-lg text-sm text-slate-700 hover:bg-gray-50 font-medium flex-shrink-0" type="button">
+                    <i class="fa-solid fa-rotate-left"></i> 重置
+                </button>
+                <span id="data-source-status" class="data-source-status" aria-live="polite"></span>
+            </div>
+        </header>
+
+        <!-- Scrollable Content Area -->
+        <div id="dashboard-scroll-container" class="flex-1 overflow-y-auto p-6">
+
+            <!-- ===== View: Overview ===== -->
+            <div id="section-overview" class="dashboard-section block" data-dashboard-section="overview">
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-50 text-primary font-bold text-sm">01</span>
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">管理大盘</h2>
+                        <p class="text-xs text-gray-500">先看规模、流转、履约和预算风险，快速判断当前整体状态。</p>
+                    </div>
+                </div>
+                <div id="overview-cards" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-6"></div>
+                <div class="space-y-6">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-base font-bold text-slate-800">产能与吞吐趋势</h3>
+                            <div class="inline-flex rounded-lg bg-gray-100 p-1 text-xs">
+                                <button class="range-button is-active px-3 py-1 rounded-md font-medium" type="button" data-throughput-range="3m">近3个月</button>
+                                <button class="range-button px-3 py-1 rounded-md font-medium" type="button" data-throughput-range="6m">近6个月</button>
+                            </div>
+                        </div>
+                        <div class="h-72 w-full relative">
+                            <canvas id="overview-throughput-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                            <h3 class="text-base font-bold text-slate-800 mb-4">延期任务</h3>
+                            <div id="overview-delay-summary" class="grid grid-cols-3 gap-3 mb-4"></div>
+                            <div class="h-48 w-full relative">
+                                <canvas id="overview-delay-chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                            <h3 class="text-base font-bold text-slate-800 mb-4">准确率风险任务</h3>
+                            <div id="overview-quality-summary" class="grid grid-cols-3 gap-3 mb-4"></div>
+                            <div class="h-48 w-full relative">
+                                <canvas id="overview-quality-chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-base font-bold text-slate-800">重点任务监控</h3>
+                            </div>
+                            <div class="overflow-auto max-h-60">
+                                <table class="w-full text-left text-sm">
+                                    <thead>
+                                        <tr class="text-gray-500 text-xs uppercase tracking-wider border-b border-gray-100">
+                                            <th class="pb-2 font-medium">任务名称</th>
+                                            <th class="pb-2 font-medium">供应商</th>
+                                            <th class="pb-2 font-medium">预期交付时间</th>
+                                            <th class="pb-2 font-medium">风险标签</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="overview-risk-table"></tbody>
+                                </table>
+                            </div>
+                            <div id="overview-on-time-vendors" class="mt-4 pt-3 border-t border-gray-100"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== View: Suppliers ===== -->
+            <div id="section-suppliers" class="dashboard-section hidden" data-dashboard-section="suppliers">
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 font-bold text-sm">02</span>
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">供应商管理</h2>
+                        <p class="text-xs text-gray-500">聚焦供应商产能、能力标签和履约风险，辅助后续任务安排。</p>
+                    </div>
+                </div>
+                <div id="supplier-kpi-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"></div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                        <h3 class="text-base font-bold text-slate-800 mb-4">准时交付排行</h3>
+                        <div class="h-72 w-full relative">
+                            <canvas id="supplier-on-time-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                        <h3 class="text-base font-bold text-slate-800 mb-4">成本分布</h3>
+                        <div class="h-72 w-full relative">
+                            <canvas id="supplier-cost-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+                    <div class="flex items-center justify-between gap-3 mb-4">
+                        <h3 class="text-base font-bold text-slate-800">供应商产能</h3>
+                        <button id="supplier-capacity-reset" type="button" class="supplier-capacity-reset-btn hidden">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            重置
+                        </button>
+                    </div>
+                    <div id="supplier-capacity-grid" class="space-y-3"></div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-0 overflow-hidden">
+                    <div class="px-5 py-4 border-b border-gray-100">
+                        <h3 class="text-base font-bold text-slate-800">供应商在接任务</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                                <tr>
+                                    <th class="px-4 py-3 font-medium">供应商</th>
+                                    <th class="px-4 py-3 font-medium">产能利用率</th>
+                                    <th class="px-4 py-3 font-medium">在接任务</th>
+                                    <th class="px-4 py-3 font-medium">占用产能</th>
+                                    <th class="px-4 py-3 font-medium">最早可接新任务</th>
+                                    <th class="px-4 py-3 font-medium">风险</th>
+                                </tr>
+                            </thead>
+                            <tbody id="supplier-active-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== View: Tasks ===== -->
+            <div id="section-tasks" class="dashboard-section hidden" data-dashboard-section="tasks">
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 font-bold text-sm">03</span>
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">任务明细</h2>
+                        <p class="text-xs text-gray-500">按任务类别和数据状态快速定位范围，再展开查看具体任务。</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 gap-6 mb-6">
+                    <div class="state-distribution-card bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                        <h3 class="text-base font-bold text-slate-800 mb-4">当前数据状态分布</h3>
+                        <div id="task-data-status-summary" class="state-summary-grid"></div>
+                        <div class="state-donut-stage">
+                            <canvas id="task-data-status-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-0 overflow-hidden mb-6">
+                    <div class="p-5 border-b border-gray-100">
+                        <h3 class="text-base font-bold text-slate-800">任务类别与任务明细</h3>
+                        <p class="text-xs text-gray-500 mt-1">父行按任务类别汇总，展开查看该类别下的具体任务，仅保留前 10 条。</p>
+                        <div class="task-detail-filter-row mt-4">
+                            <label><span>任务类别</span><select id="task-detail-filter-category"></select></label>
+                            <label><span>开始日期</span><input type="date" id="task-detail-filter-latestTimeStart" class="task-detail-date-input"></label>
+                            <label><span>结束日期</span><input type="date" id="task-detail-filter-latestTimeEnd" class="task-detail-date-input"></label>
+                            <label><span>任务状态</span><select id="task-detail-filter-status"></select></label>
+                            <label><span>部门</span><select id="task-detail-filter-department"></select></label>
+                            <label><span>供应商</span><select id="task-detail-filter-vendor"></select></label>
+                            <label><span>风险</span><select id="task-detail-filter-risk"></select></label>
+                            <div class="task-detail-filter-actions">
+                                <button id="task-detail-reset" type="button">重置</button>
+                                <button id="task-detail-refresh" type="button">刷新</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-sm monitor-table">
+                            <thead>
+                                <tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                                    <th class="px-4 py-3 font-medium">任务类别</th>
+                                    <th class="px-4 py-3 font-medium">最新时间</th>
+                                    <th class="px-4 py-3 font-medium">任务状态</th>
+                                    <th class="px-4 py-3 font-medium">部门</th>
+                                    <th class="px-4 py-3 font-medium">供应商</th>
+                                    <th class="px-4 py-3 font-medium">任务数</th>
+                                    <th class="px-4 py-3 font-medium">数据量</th>
+                                    <th class="px-4 py-3 font-medium">结算金额</th>
+                                    <th class="px-4 py-3 font-medium">风险</th>
+                                </tr>
+                            </thead>
+                            <tbody id="task-monitor-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <!-- ===== View: Finance ===== -->
+            <div id="section-finance" class="dashboard-section hidden" data-dashboard-section="finance">
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-orange-100 text-orange-600 font-bold text-sm">05</span>
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">结算与预算</h2>
+                        <p class="text-xs text-gray-500">关注预算消耗、结算节奏和供应商结算分布，支撑费用管理。</p>
+                    </div>
+                </div>
+                <div id="finance-split-cards" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"></div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-base font-bold text-slate-800">月结算金额</h3>
+                            <div class="inline-flex rounded-lg bg-gray-100 p-1 text-xs">
+                                <button class="range-button is-active px-3 py-1 rounded-md font-medium" type="button" data-finance-total-range="6">近6个月</button>
+                                <button class="range-button px-3 py-1 rounded-md font-medium" type="button" data-finance-total-range="3">近3个月</button>
+                            </div>
+                        </div>
+                        <div class="h-64 w-full relative">
+                            <canvas id="finance-total-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                        <h3 class="text-base font-bold text-slate-800 mb-4">不同业务线结算金额</h3>
+                        <div class="h-64 w-full relative">
+                            <canvas id="finance-business-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-base font-bold text-slate-800">结算金额趋势与供应商分布</h3>
+                        <div class="inline-flex rounded-lg bg-gray-100 p-1 text-xs">
+                            <button class="range-button is-active px-3 py-1 rounded-md font-medium" type="button" data-finance-range="6">近6个月</button>
+                            <button class="range-button px-3 py-1 rounded-md font-medium" type="button" data-finance-range="3">近3个月</button>
+                        </div>
+                    </div>
+                    <div class="h-72 w-full relative">
+                        <canvas id="finance-compare-chart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-0 overflow-hidden">
+                    <div class="p-5 border-b border-gray-100">
+                        <h3 class="text-base font-bold text-slate-800">结算明细</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead>
+                                <tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                                    <th class="px-4 py-3 font-medium">供应商</th>
+                                    <th class="px-4 py-3 font-medium">任务数</th>
+                                    <th class="px-4 py-3 font-medium">数据量</th>
+                                    <th class="px-4 py-3 font-medium">结算金额</th>
+                                    <th class="px-4 py-3 font-medium">金额占比</th>
+                                    <th class="px-4 py-3 font-medium">结算状态</th>
+                                </tr>
+                            </thead>
+                            <tbody id="finance-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== View: Pending ===== -->
+            <div id="section-pending" class="dashboard-section hidden" data-dashboard-section="pending">
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-600 font-bold text-sm">06</span>
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">数据能力建设</h2>
+                        <p class="text-xs text-gray-500">这些指标暂不进入主看板展示，作为后续数据能力建设清单保留。</p>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-0 overflow-hidden">
+                    <details class="p-5">
+                        <summary class="flex items-center gap-2 cursor-pointer text-slate-700 font-semibold list-none">
+                            <i class="fa-solid fa-chevron-right text-xs text-gray-400"></i> 建设中指标
+                        </summary>
+                        <div class="mt-4 overflow-x-auto">
+                            <table class="w-full text-left text-sm">
+                                <thead>
+                                    <tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                                        <th class="px-4 py-3 font-medium">指标</th>
+                                        <th class="px-4 py-3 font-medium">归属模块</th>
+                                        <th class="px-4 py-3 font-medium">接入状态</th>
+                                        <th class="px-4 py-3 font-medium">建设条件</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b border-gray-100"><td class="px-4 py-3">全盘抽检合格率</td><td class="px-4 py-3 text-gray-500">管理大盘 / 质量治理</td><td class="px-4 py-3"><span class="inline-flex px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">数据待接入</span></td><td class="px-4 py-3 text-gray-400 text-xs">接入业务方抽检数据后，再作为质量核心指标展示。</td></tr>
+                                    <tr class="border-b border-gray-100"><td class="px-4 py-3">大盘平均验收合格率</td><td class="px-4 py-3 text-gray-500">管理大盘</td><td class="px-4 py-3"><span class="inline-flex px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">口径待确认</span></td><td class="px-4 py-3 text-gray-400 text-xs">先统一验收口径，避免和审核通过率、抽检合格率混用。</td></tr>
+                                    <tr class="border-b border-gray-100"><td class="px-4 py-3">质检准确率低任务</td><td class="px-4 py-3 text-gray-500">任务运营</td><td class="px-4 py-3"><span class="inline-flex px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">缺少质检链路</span></td><td class="px-4 py-3 text-gray-400 text-xs">等质检结果、错误类型和任务映射稳定后，再进入风险任务区。</td></tr>
+                                    <tr class="border-b border-gray-100"><td class="px-4 py-3">供应商平均质检合格率</td><td class="px-4 py-3 text-gray-500">供应商管理</td><td class="px-4 py-3"><span class="inline-flex px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">数据待接入</span></td><td class="px-4 py-3 text-gray-400 text-xs">未来可作为供应商履约质量排行，当前不展示数值。</td></tr>
+                                    <tr class="border-b border-gray-100"><td class="px-4 py-3">供应商质量波动趋势</td><td class="px-4 py-3 text-gray-500">供应商管理</td><td class="px-4 py-3"><span class="inline-flex px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">数据待接入</span></td><td class="px-4 py-3 text-gray-400 text-xs">需要连续周期质检结果，适合后续做趋势图。</td></tr>
+                                    <tr class="border-b border-gray-100"><td class="px-4 py-3">返工率</td><td class="px-4 py-3 text-gray-500">供应商管理</td><td class="px-4 py-3"><span class="inline-flex px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">返工口径待确认</span></td><td class="px-4 py-3 text-gray-400 text-xs">接入返工任务与原任务映射后，再作为供应商履约质量指标。</td></tr>
+                                    <tr class="border-b border-gray-100"><td class="px-4 py-3">Badcase 分布</td><td class="px-4 py-3 text-gray-500">质量治理</td><td class="px-4 py-3"><span class="inline-flex px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">数据待接入</span></td><td class="px-4 py-3 text-gray-400 text-xs">需要 badcase 记录与任务、供应商映射后再展示。</td></tr>
+                                    <tr class="border-b border-gray-100"><td class="px-4 py-3">错误归因分布</td><td class="px-4 py-3 text-gray-500">质量治理</td><td class="px-4 py-3"><span class="inline-flex px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">归因链路待建设</span></td><td class="px-4 py-3 text-gray-400 text-xs">建议作为独立质量治理模块的二期能力。</td></tr>
+                                    <tr class="border-b border-gray-100"><td class="px-4 py-3">质检准确率</td><td class="px-4 py-3 text-gray-500">质量治理</td><td class="px-4 py-3"><span class="inline-flex px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">数据待接入</span></td><td class="px-4 py-3 text-gray-400 text-xs">需要质检判定结果和复核结果后再展示。</td></tr>
+                                    <tr><td class="px-4 py-3">机器预检自动拦截量</td><td class="px-4 py-3 text-gray-500">质量治理</td><td class="px-4 py-3"><span class="inline-flex px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">系统数据待接入</span></td><td class="px-4 py-3 text-gray-400 text-xs">接入机器预检日志后，再用趋势图观察自动拦截效果。</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>
+                </div>
+            </div>
+
+            <footer class="text-center text-sm text-gray-400 pb-4">
+                &copy; 2026 DataOps Pro Annotation Management Platform.
+            </footer>
+        </div>
+    </main>
+
+    <!-- Assistant FAB -->
+    <button id="assistant-entry" class="fixed right-7 bottom-7 z-40 flex flex-col items-start gap-1 min-w-[156px] p-4 bg-white border border-gray-200 rounded-xl shadow-lg text-slate-700 cursor-pointer hover:shadow-xl transition-shadow" type="button" aria-label="打开数据助手">
+        <span class="text-sm font-bold">数据助手</span>
+        <span class="text-xs text-primary">内测</span>
+    </button>
+
+    <!-- Assistant Panel -->
+    <aside id="assistant-panel" class="fixed top-4 right-4 bottom-4 w-[400px] z-50 flex flex-col bg-white border border-gray-200 rounded-2xl shadow-2xl translate-x-[calc(100%+24px)] transition-transform duration-300 overflow-hidden" aria-hidden="true">
+        <div class="flex items-start justify-between gap-3 p-5 border-b border-gray-100">
+            <div>
+                <p class="text-xs text-primary uppercase tracking-wider mb-1">Data Assistant</p>
+                <h3 class="text-xl font-bold text-slate-800">数据助手</h3>
+                <p id="assistant-mode-note" class="text-xs text-gray-400 mt-0.5"></p>
+            </div>
+            <button id="assistant-close" class="w-8 h-8 flex items-center justify-center border border-gray-200 rounded-full text-gray-500 hover:bg-gray-50 cursor-pointer" type="button" aria-label="关闭问答助手">&times;</button>
+        </div>
+        <div class="flex-1 overflow-auto p-5">
+            <div id="assistant-messages" class="flex flex-col gap-3"></div>
+            <div class="mt-4 pt-4 border-t border-gray-100">
+                <div class="text-xs text-gray-400 mb-2">常用分析</div>
+                <div id="assistant-suggestion-list" class="flex flex-wrap gap-2"></div>
+            </div>
+        </div>
+        <div class="p-5 border-t border-gray-100">
+            <form id="assistant-form" class="flex flex-col gap-3">
+                <textarea id="assistant-input" rows="2" class="w-full border border-gray-200 rounded-xl p-3 text-sm resize-none focus:outline-none focus:border-primary" placeholder="例如：当前金额最高的供应商是谁？本月新增任务多吗？"></textarea>
+                <div class="flex justify-between items-center gap-3">
+                    <span id="assistant-api-note" class="text-xs text-gray-400"></span>
+                    <button id="assistant-submit" class="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-wait cursor-pointer" type="submit">发送</button>
+                </div>
+            </form>
+        </div>
+    </aside>
+
+    <script src="./dashboard-config.js?v=20260526-backend1"></script>
+    <script src="./data.js"></script>
+    <script src="./api-client.js?v=20260526-backend1"></script>
+    <script src="./dashboard-adapter.js?v=20260526-backend1"></script>
+    <script src="./assistant-config.js"></script>
+    <script src="./app.js?v=20260527-align1"></script>
+</body>
+</html>
