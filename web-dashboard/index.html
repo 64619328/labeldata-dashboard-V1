@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./styles.css?v=20260526-backend1" />
+    <link rel="stylesheet" href="./styles.css?v=20260527-align1" />
 
     <script>
         tailwind.config = {
@@ -19,12 +19,12 @@
                         sans: ['Inter', 'sans-serif'],
                     },
                     colors: {
-                        primary: '#3b82f6',
+                        primary: '#e60023',
                         secondary: '#64748b',
                         success: '#10b981',
                         warning: '#f59e0b',
                         danger: '#ef4444',
-                        background: '#f8fafc',
+                        background: '#fbfbf9',
                         surface: '#ffffff',
                     }
                 }
@@ -32,12 +32,12 @@
         }
     </script>
 </head>
-<body class="flex h-screen overflow-hidden antialiased text-gray-800 bg-[#f8fafc]">
+<body class="flex h-screen overflow-hidden antialiased text-gray-800 bg-[#fbfbf9]">
 
     <!-- Sidebar -->
     <aside class="w-64 bg-slate-900 text-white flex flex-col hidden md:flex transition-all duration-300 flex-shrink-0">
         <div class="h-16 flex items-center px-6 border-b border-slate-800 font-bold text-xl tracking-wider">
-            <i class="fa-solid fa-layer-group text-blue-500 mr-3"></i> DataOps Pro
+            <i class="fa-solid fa-layer-group text-primary mr-3"></i> DataOps Pro
         </div>
         <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto" id="sidebar-nav">
             <button class="nav-item flex items-center w-full px-4 py-3 bg-primary/10 text-primary rounded-lg transition-colors active text-left" data-tab-target="overview">
@@ -47,10 +47,7 @@
                 <i class="fa-solid fa-building-user w-6"></i> 供应商管理
             </button>
             <button class="nav-item flex items-center w-full px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors text-left" data-tab-target="tasks">
-                <i class="fa-solid fa-list-check w-6"></i> 任务运营
-            </button>
-            <button class="nav-item flex items-center w-full px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors text-left" data-tab-target="business">
-                <i class="fa-solid fa-chart-bar w-6"></i> 业务线分析
+                <i class="fa-solid fa-list-check w-6"></i> 任务明细
             </button>
             <button class="nav-item flex items-center w-full px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors text-left" data-tab-target="finance">
                 <i class="fa-solid fa-file-invoice-dollar w-6"></i> 结算与预算
@@ -61,7 +58,7 @@
         </nav>
         <div class="p-4 border-t border-slate-800">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm border border-slate-600">A</div>
+                <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm border border-gray-200">A</div>
                 <div>
                     <p class="text-sm font-medium">管理员</p>
                     <p class="text-xs text-slate-400">数据标注中心</p>
@@ -81,8 +78,8 @@
             <div class="flex items-center justify-end gap-3 min-w-0 flex-1">
                 <div class="inline-flex rounded-lg bg-gray-100 p-1 text-sm flex-shrink-0">
                     <button class="toolbar-range-button px-3 py-1.5 rounded-md font-medium text-gray-600" type="button" data-overview-range="7d">近7天</button>
-                    <button class="toolbar-range-button px-3 py-1.5 rounded-md font-medium text-gray-600" type="button" data-overview-range="30d">近30天</button>
-                    <button class="toolbar-range-button bg-white text-slate-900 shadow-sm px-3 py-1.5 rounded-md font-medium" type="button" data-overview-range="3m">近3个月</button>
+                    <button class="toolbar-range-button bg-white text-slate-900 shadow-sm px-3 py-1.5 rounded-md font-medium" type="button" data-overview-range="30d">近30天</button>
+                    <button class="toolbar-range-button px-3 py-1.5 rounded-md font-medium text-gray-600" type="button" data-overview-range="3m">近3个月</button>
                     <button class="toolbar-range-button px-3 py-1.5 rounded-md font-medium text-gray-600" type="button" data-overview-range="6m">近6个月</button>
                 </div>
                 <button id="refresh-data-source" class="inline-flex items-center gap-2 bg-white border border-gray-200 px-4 py-2 rounded-lg text-sm text-slate-700 hover:bg-gray-50 font-medium flex-shrink-0" type="button">
@@ -96,12 +93,12 @@
         </header>
 
         <!-- Scrollable Content Area -->
-        <div class="flex-1 overflow-y-auto p-6 space-y-6">
+        <div id="dashboard-scroll-container" class="flex-1 overflow-y-auto p-6">
 
             <!-- ===== View: Overview ===== -->
             <div id="section-overview" class="dashboard-section block" data-dashboard-section="overview">
                 <div class="flex items-center gap-3 mb-4">
-                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 text-primary font-bold text-sm">01</span>
+                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-50 text-primary font-bold text-sm">01</span>
                     <div>
                         <h2 class="text-lg font-bold text-slate-800">管理大盘</h2>
                         <p class="text-xs text-gray-500">先看规模、流转、履约和预算风险，快速判断当前整体状态。</p>
@@ -112,22 +109,33 @@
                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-base font-bold text-slate-800">产能与吞吐趋势</h3>
+                            <div class="inline-flex rounded-lg bg-gray-100 p-1 text-xs">
+                                <button class="range-button is-active px-3 py-1 rounded-md font-medium" type="button" data-throughput-range="3m">近3个月</button>
+                                <button class="range-button px-3 py-1 rounded-md font-medium" type="button" data-throughput-range="6m">近6个月</button>
+                            </div>
                         </div>
                         <div class="h-72 w-full relative">
                             <canvas id="overview-throughput-chart"></canvas>
                         </div>
                     </div>
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                            <h3 class="text-base font-bold text-slate-800 mb-4">延期任务占比</h3>
+                            <h3 class="text-base font-bold text-slate-800 mb-4">延期任务</h3>
                             <div id="overview-delay-summary" class="grid grid-cols-3 gap-3 mb-4"></div>
                             <div class="h-48 w-full relative">
                                 <canvas id="overview-delay-chart"></canvas>
                             </div>
                         </div>
                         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                            <h3 class="text-base font-bold text-slate-800 mb-4">准确率风险任务</h3>
+                            <div id="overview-quality-summary" class="grid grid-cols-3 gap-3 mb-4"></div>
+                            <div class="h-48 w-full relative">
+                                <canvas id="overview-quality-chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                             <div class="flex justify-between items-center mb-4">
-                                <h3 class="text-base font-bold text-slate-800">重点风险任务</h3>
+                                <h3 class="text-base font-bold text-slate-800">重点任务监控</h3>
                             </div>
                             <div class="overflow-auto max-h-60">
                                 <table class="w-full text-left text-sm">
@@ -136,7 +144,7 @@
                                             <th class="pb-2 font-medium">任务名称</th>
                                             <th class="pb-2 font-medium">供应商</th>
                                             <th class="pb-2 font-medium">预期交付时间</th>
-                                            <th class="pb-2 font-medium">风险</th>
+                                            <th class="pb-2 font-medium">风险标签</th>
                                         </tr>
                                     </thead>
                                     <tbody id="overview-risk-table"></tbody>
@@ -209,12 +217,12 @@
                 <div class="flex items-center gap-3 mb-4">
                     <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 font-bold text-sm">03</span>
                     <div>
-                        <h2 class="text-lg font-bold text-slate-800">任务运营</h2>
+                        <h2 class="text-lg font-bold text-slate-800">任务明细</h2>
                         <p class="text-xs text-gray-500">按任务类别和数据状态快速定位范围，再展开查看具体任务。</p>
                     </div>
                 </div>
                 <div class="grid grid-cols-1 gap-6 mb-6">
-                    <div class="state-distribution-card bg-white rounded-xl shadow-sm border border-gray-100 p-5" style="max-width: 600px; margin: 0 auto;">
+                    <div class="state-distribution-card bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                         <h3 class="text-base font-bold text-slate-800 mb-4">当前数据状态分布</h3>
                         <div id="task-data-status-summary" class="state-summary-grid"></div>
                         <div class="state-donut-stage">
@@ -224,7 +232,7 @@
                 </div>
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-0 overflow-hidden mb-6">
                     <div class="p-5 border-b border-gray-100">
-                        <h3 class="text-base font-bold text-slate-800">任务类别与任务运营</h3>
+                        <h3 class="text-base font-bold text-slate-800">任务类别与任务明细</h3>
                         <p class="text-xs text-gray-500 mt-1">父行按任务类别汇总，展开查看该类别下的具体任务，仅保留前 10 条。</p>
                         <div class="task-detail-filter-row mt-4">
                             <label><span>任务类别</span><select id="task-detail-filter-category"></select></label>
@@ -260,59 +268,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- ===== View: Business ===== -->
-            <div id="section-business" class="dashboard-section hidden" data-dashboard-section="business">
-                <div class="flex items-center gap-3 mb-4">
-                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-violet-100 text-violet-600 font-bold text-sm">04</span>
-                    <div>
-                        <h2 class="text-lg font-bold text-slate-800">业务线分析</h2>
-                        <p class="text-xs text-gray-500">看不同业务线的数据量、任务量和成本归因，避免指标分散重复。</p>
-                    </div>
-                </div>
-                <div id="business-kpi-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"></div>
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                        <h3 class="text-base font-bold text-slate-800 mb-4">业务线规模与成本对比</h3>
-                        <div class="h-64 w-full relative">
-                            <canvas id="business-compare-chart"></canvas>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-base font-bold text-slate-800">业务线数据量趋势</h3>
-                            <div class="inline-flex rounded-lg bg-gray-100 p-1 text-xs">
-                                <button class="range-button is-active px-3 py-1 rounded-md font-medium" type="button" data-business-trend-range="6">近6个月</button>
-                                <button class="range-button px-3 py-1 rounded-md font-medium" type="button" data-business-trend-range="3">近3个月</button>
-                            </div>
-                        </div>
-                        <div class="h-64 w-full relative">
-                            <canvas id="business-trend-chart"></canvas>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-0 overflow-hidden">
-                    <div class="p-5 border-b border-gray-100">
-                        <h3 class="text-base font-bold text-slate-800">业务线明细</h3>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-sm">
-                            <thead>
-                                <tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
-                                    <th class="px-4 py-3 font-medium">业务线</th>
-                                    <th class="px-4 py-3 font-medium">任务数</th>
-                                    <th class="px-4 py-3 font-medium">数据量</th>
-                                    <th class="px-4 py-3 font-medium">结算金额</th>
-                                    <th class="px-4 py-3 font-medium">按时交付率</th>
-                                    <th class="px-4 py-3 font-medium">主要任务类别 / 供应商</th>
-                                </tr>
-                            </thead>
-                            <tbody id="business-table"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
             <!-- ===== View: Finance ===== -->
             <div id="section-finance" class="dashboard-section hidden" data-dashboard-section="finance">
                 <div class="flex items-center gap-3 mb-4">
@@ -323,6 +278,26 @@
                     </div>
                 </div>
                 <div id="finance-split-cards" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"></div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-base font-bold text-slate-800">月结算金额</h3>
+                            <div class="inline-flex rounded-lg bg-gray-100 p-1 text-xs">
+                                <button class="range-button is-active px-3 py-1 rounded-md font-medium" type="button" data-finance-total-range="6">近6个月</button>
+                                <button class="range-button px-3 py-1 rounded-md font-medium" type="button" data-finance-total-range="3">近3个月</button>
+                            </div>
+                        </div>
+                        <div class="h-64 w-full relative">
+                            <canvas id="finance-total-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                        <h3 class="text-base font-bold text-slate-800 mb-4">不同业务线结算金额</h3>
+                        <div class="h-64 w-full relative">
+                            <canvas id="finance-business-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-base font-bold text-slate-800">结算金额趋势与供应商分布</h3>
@@ -333,18 +308,6 @@
                     </div>
                     <div class="h-72 w-full relative">
                         <canvas id="finance-compare-chart"></canvas>
-                    </div>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-base font-bold text-slate-800">月结算金额</h3>
-                        <div class="inline-flex rounded-lg bg-gray-100 p-1 text-xs">
-                            <button class="range-button is-active px-3 py-1 rounded-md font-medium" type="button" data-finance-total-range="6">近6个月</button>
-                            <button class="range-button px-3 py-1 rounded-md font-medium" type="button" data-finance-total-range="3">近3个月</button>
-                        </div>
-                    </div>
-                    <div class="h-72 w-full relative">
-                        <canvas id="finance-total-chart"></canvas>
                     </div>
                 </div>
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-0 overflow-hidden">
@@ -420,14 +383,14 @@
     <!-- Assistant FAB -->
     <button id="assistant-entry" class="fixed right-7 bottom-7 z-40 flex flex-col items-start gap-1 min-w-[156px] p-4 bg-white border border-gray-200 rounded-xl shadow-lg text-slate-700 cursor-pointer hover:shadow-xl transition-shadow" type="button" aria-label="打开数据助手">
         <span class="text-sm font-bold">数据助手</span>
-        <span class="text-xs text-blue-500">内测</span>
+        <span class="text-xs text-primary">内测</span>
     </button>
 
     <!-- Assistant Panel -->
     <aside id="assistant-panel" class="fixed top-4 right-4 bottom-4 w-[400px] z-50 flex flex-col bg-white border border-gray-200 rounded-2xl shadow-2xl translate-x-[calc(100%+24px)] transition-transform duration-300 overflow-hidden" aria-hidden="true">
         <div class="flex items-start justify-between gap-3 p-5 border-b border-gray-100">
             <div>
-                <p class="text-xs text-blue-500 uppercase tracking-wider mb-1">Data Assistant</p>
+                <p class="text-xs text-primary uppercase tracking-wider mb-1">Data Assistant</p>
                 <h3 class="text-xl font-bold text-slate-800">数据助手</h3>
                 <p id="assistant-mode-note" class="text-xs text-gray-400 mt-0.5"></p>
             </div>
@@ -445,7 +408,7 @@
                 <textarea id="assistant-input" rows="2" class="w-full border border-gray-200 rounded-xl p-3 text-sm resize-none focus:outline-none focus:border-primary" placeholder="例如：当前金额最高的供应商是谁？本月新增任务多吗？"></textarea>
                 <div class="flex justify-between items-center gap-3">
                     <span id="assistant-api-note" class="text-xs text-gray-400"></span>
-                    <button id="assistant-submit" class="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-wait cursor-pointer" type="submit">发送</button>
+                    <button id="assistant-submit" class="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-wait cursor-pointer" type="submit">发送</button>
                 </div>
             </form>
         </div>
@@ -456,6 +419,6 @@
     <script src="./api-client.js?v=20260526-backend1"></script>
     <script src="./dashboard-adapter.js?v=20260526-backend1"></script>
     <script src="./assistant-config.js"></script>
-    <script src="./app.js?v=20260526-backend1"></script>
+    <script src="./app.js?v=20260527-align1"></script>
 </body>
 </html>

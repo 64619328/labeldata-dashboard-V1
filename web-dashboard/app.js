@@ -57,9 +57,8 @@
 
   const state = {
     activeSection: "overview",
-    overviewRange: "3m",
-    taskCycleRange: 6,
-    businessTrendRange: 6,
+    overviewRange: "30d",
+    throughputRange: "3m",
     financeRange: 6,
     financeTotalRange: 6,
     globalFilters: createFilterState(commonFilterKeys),
@@ -83,18 +82,19 @@
     metaGeneratedAt: document.getElementById("meta-generated-at"),
     tabButtons: Array.from(document.querySelectorAll("[data-tab-target]")),
     tabPanels: Array.from(document.querySelectorAll("[data-dashboard-section]")),
+    dashboardScrollContainer: document.getElementById("dashboard-scroll-container"),
     overviewCards: document.getElementById("overview-cards"),
     overviewThroughputChart: document.getElementById("overview-throughput-chart"),
     overviewDelayChart: document.getElementById("overview-delay-chart"),
     overviewDelaySummary: document.getElementById("overview-delay-summary"),
+    overviewQualityChart: document.getElementById("overview-quality-chart"),
+    overviewQualitySummary: document.getElementById("overview-quality-summary"),
     overviewRiskTable: document.getElementById("overview-risk-table"),
     overviewRangeButtons: Array.from(document.querySelectorAll("[data-overview-range]")),
+    throughputRangeButtons: Array.from(document.querySelectorAll("[data-throughput-range]")),
     overviewOnTimeVendors: document.getElementById("overview-on-time-vendors"),
-    taskCycleChart: document.getElementById("task-cycle-chart"),
-    taskCycleRangeButtons: Array.from(document.querySelectorAll("[data-task-cycle-range]")),
     taskDataStatusChart: document.getElementById("task-data-status-chart"),
     taskDataStatusSummary: document.getElementById("task-data-status-summary"),
-    taskTypeChart: document.getElementById("task-type-chart"),
     taskMonitorTable: document.getElementById("task-monitor-table"),
     taskDetailReset: document.getElementById("task-detail-reset"),
     taskDetailRefresh: document.getElementById("task-detail-refresh"),
@@ -104,18 +104,14 @@
     supplierCapacityGrid: document.getElementById("supplier-capacity-grid"),
     supplierCapacityReset: document.getElementById("supplier-capacity-reset"),
     supplierActiveTable: document.getElementById("supplier-active-table"),
-    businessKpiCards: document.getElementById("business-kpi-cards"),
-    businessTrendChart: document.getElementById("business-trend-chart"),
-    businessTrendRangeButtons: Array.from(document.querySelectorAll("[data-business-trend-range]")),
-    businessTable: document.getElementById("business-table"),
     financeSplitCards: document.getElementById("finance-split-cards"),
     financeTable: document.getElementById("finance-table"),
     financeRangeButtons: Array.from(document.querySelectorAll("[data-finance-range]")),
     financeTotalRangeButtons: Array.from(document.querySelectorAll("[data-finance-total-range]")),
     financeTotalChart: document.getElementById("finance-total-chart"),
+    financeBusinessChart: document.getElementById("finance-business-chart"),
     globalReset: document.getElementById("global-reset"),
     refreshDataSource: document.getElementById("refresh-data-source"),
-    businessCompareChart: document.getElementById("business-compare-chart"),
     financeCompareChart: document.getElementById("finance-compare-chart"),
     assistantEntry: document.getElementById("assistant-entry"),
     assistantPanel: document.getElementById("assistant-panel"),
@@ -257,7 +253,7 @@
       event.preventDefault();
       event.stopPropagation();
       resetFilters(state.globalFilters, "global", commonFilterKeys);
-      state.overviewRange = "3m";
+      state.overviewRange = "30d";
       state.expandedSuppliers.clear();
       state.focusedTaskRecordId = "";
       destroyAllCharts();
@@ -305,22 +301,10 @@
           renderMeta();
           render();
         } else {
+          renderOverviewCards(getOverviewRecords());
+          renderOverviewDiagnostics(getOverviewRecords());
           renderSectionCharts("overview");
         }
-      });
-    });
-    els.taskCycleRangeButtons.forEach((button) => {
-      button.addEventListener("click", () => {
-        state.taskCycleRange = Number(button.getAttribute("data-task-cycle-range")) || 6;
-        renderRangeButtons();
-        renderSectionCharts("tasks");
-      });
-    });
-    els.businessTrendRangeButtons.forEach((button) => {
-      button.addEventListener("click", () => {
-        state.businessTrendRange = Number(button.getAttribute("data-business-trend-range")) || 6;
-        renderRangeButtons();
-        renderSectionCharts("business");
       });
     });
     els.financeRangeButtons.forEach((button) => {
@@ -335,6 +319,13 @@
         state.financeTotalRange = Number(button.getAttribute("data-finance-total-range")) || 6;
         renderRangeButtons();
         renderSectionCharts("finance");
+      });
+    });
+    els.throughputRangeButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        state.throughputRange = button.getAttribute("data-throughput-range") || "3m";
+        renderRangeButtons();
+        renderSectionCharts("overview");
       });
     });
     els.refreshDataSource?.addEventListener("click", async () => {
@@ -358,20 +349,15 @@
       button.classList.toggle("text-gray-600", !active);
       button.classList.toggle("shadow-sm", active);
     });
+    els.throughputRangeButtons.forEach((button) => {
+      const active = button.getAttribute("data-throughput-range") === state.throughputRange;
+      button.classList.toggle("is-active", active);
+      button.classList.toggle("bg-white", active);
+      button.classList.toggle("text-primary", active);
+      button.classList.toggle("shadow-sm", active);
+    });
     els.financeRangeButtons.forEach((button) => {
       const active = Number(button.getAttribute("data-finance-range")) === state.financeRange;
-      button.classList.toggle("bg-white", active);
-      button.classList.toggle("text-primary", active);
-      button.classList.toggle("shadow-sm", active);
-    });
-    els.taskCycleRangeButtons.forEach((button) => {
-      const active = Number(button.getAttribute("data-task-cycle-range")) === state.taskCycleRange;
-      button.classList.toggle("bg-white", active);
-      button.classList.toggle("text-primary", active);
-      button.classList.toggle("shadow-sm", active);
-    });
-    els.businessTrendRangeButtons.forEach((button) => {
-      const active = Number(button.getAttribute("data-business-trend-range")) === state.businessTrendRange;
       button.classList.toggle("bg-white", active);
       button.classList.toggle("text-primary", active);
       button.classList.toggle("shadow-sm", active);
@@ -387,6 +373,7 @@
   function switchTab(targetId) {
     state.activeSection = targetId;
     renderSectionNav();
+    resetDashboardScroll();
 
     els.tabPanels.forEach((panel) => {
       const section = panel.getAttribute("data-dashboard-section");
@@ -394,12 +381,21 @@
       panel.classList.toggle("hidden", section !== targetId);
     });
 
+    resetDashboardScroll();
+
     if (els.headerTitle) {
       els.headerTitle.textContent = "标注平台管理端数据看板系统";
     }
 
     // Re-render charts for the active section (handles resize properly)
     renderSectionCharts(targetId);
+    requestAnimationFrame(resetDashboardScroll);
+  }
+
+  function resetDashboardScroll() {
+    if (!els.dashboardScrollContainer) return;
+    els.dashboardScrollContainer.scrollTop = 0;
+    els.dashboardScrollContainer.scrollLeft = 0;
   }
 
   function renderSectionNav() {
@@ -419,22 +415,19 @@
     const globalRecords = getGlobalRecords();
     if (sectionId === "overview") {
       const overviewRecords = getOverviewRecords();
-      renderChartThroughput(overviewRecords, state.overviewRange);
+      renderChartThroughput(globalRecords, state.throughputRange);
       renderChartOverviewDelayRate(overviewRecords);
-      renderChartOverviewStatusDistribution(overviewRecords);
-      renderChartOverviewTaskTypeDistribution(overviewRecords);
-      renderChartOverviewBusinessDistribution(overviewRecords);
+      renderChartOverviewQualityRiskRate(overviewRecords);
     } else if (sectionId === "tasks") {
       renderChartTaskDataStatusDistribution(globalRecords);
     } else if (sectionId === "suppliers") {
       renderChartSupplierOnTimeRank(globalRecords);
       renderChartSupplierCostDistribution(globalRecords);
-    } else if (sectionId === "business") {
-      renderChartBusinessCompare(globalRecords);
-      renderChartBusinessTrend(filterRecentMonths(globalRecords, state.businessTrendRange));
+      renderSupplierCapacityTrendCharts(getSupplierRows(globalRecords), globalRecords);
     } else if (sectionId === "finance") {
       renderChartFinanceCompare(filterRecentMonths(globalRecords, state.financeRange));
       renderChartFinanceTotalTrend(filterRecentMonths(globalRecords, state.financeTotalRange));
+      renderChartFinanceBusinessSettlement(globalRecords);
     }
   }
 
@@ -457,7 +450,6 @@
     renderTaskMonitoring(getTaskDetailRecords(globalRecords));
     renderSupplierManagement(supplierRows);
     updateSupplierCapacityResetBtnVisibility();
-    renderBusinessAnalysis(globalRecords);
     renderFinanceBudget(globalRecords);
     renderAssistant(globalRecords);
 
@@ -627,20 +619,13 @@
       (item) => numberValue(item["数据量"])
     );
     const cards = [
-      ["下发数据总量", formatCompact(summary.volume), "当前统计周期"],
-      ["交付数据总量", formatCompact(deliveredVolume), "已审核通过任务"],
-      ["累计消耗金额", formatCurrency(summary.amount), "当前统计周期"],
+      ["下发数据量", formatCompact(summary.volume), "当前统计周期下发的数据总量"],
+      ["交付数据量", formatCompact(deliveredVolume), "当前统计周期已审核通过任务"],
+      ["消耗金额", formatCurrency(summary.amount), "当前统计周期已消耗的预算总额"],
+      ["任务数", formatInteger(summary.totalTasks), "当前统计周期内的总任务数"],
+      ["标注中的任务数", formatInteger(summary.labelingTasks), "当前统计周期内正在标注处理的任务数"],
+      ["审核中任务数", formatInteger(summary.reviewingTasks), "当前统计周期内等待审核的任务数"],
     ];
-    const statusRows = buildOverviewStatusRows(records);
-    const statusTotal = sum(statusRows, (row) => row.value);
-    const leadingStatus = statusRows[0]?.label || "暂无";
-    const activeTasks = records.filter((item) => item["流程状态"] !== "审核通过" && item["流程状态"] !== "待审核").length;
-    const typeRows = buildOverviewTaskTypeRows(records);
-    const leadingType = typeRows[0]?.label || "暂无";
-    const topTypeVolume = typeRows[0]?.value || 0;
-    const businessRows = buildOverviewBusinessRows(records);
-    const leadingBusiness = businessRows[0]?.label || "暂无";
-    const topBusinessVolume = businessRows[0]?.value || 0;
 
     els.overviewCards.innerHTML = cards
       .map(
@@ -652,40 +637,12 @@
           </div>
         `
       )
-      .join("") +
-      `
-        <article class="overview-donut-card">
-          <h3>当前任务状态分布</h3>
-          <div class="overview-donut-card__stats">
-            <div class="overview-mini-stat is-blue"><span>当前任务</span><strong>${formatInteger(statusTotal)}</strong></div>
-            <div class="overview-mini-stat"><span>主导状态</span><strong>${escapeHtml(leadingStatus)}</strong></div>
-            <div class="overview-mini-stat is-green"><span>活跃任务（标注中和审核中）</span><strong>${formatInteger(activeTasks)}</strong></div>
-          </div>
-          <div class="overview-donut-card__chart"><canvas id="overview-status-chart"></canvas></div>
-        </article>
-        <article class="overview-donut-card">
-          <h3>任务类型分布（按数据量统计）</h3>
-          <div class="overview-donut-card__stats">
-            <div class="overview-mini-stat is-blue"><span>覆盖类型</span><strong>${formatInteger(typeRows.length)}</strong></div>
-            <div class="overview-mini-stat"><span>主力类型</span><strong>${escapeHtml(leadingType)}</strong></div>
-            <div class="overview-mini-stat"><span>top任务数据量</span><strong>${formatCompact(topTypeVolume)}</strong></div>
-          </div>
-          <div class="overview-donut-card__chart"><canvas id="overview-task-type-chart"></canvas></div>
-        </article>
-        <article class="overview-donut-card">
-          <h3>不同业务分布（按数据量统计）</h3>
-          <div class="overview-donut-card__stats">
-            <div class="overview-mini-stat is-blue"><span>覆盖业务</span><strong>${formatInteger(businessRows.length)}</strong></div>
-            <div class="overview-mini-stat"><span>主力业务</span><strong>${escapeHtml(leadingBusiness)}</strong></div>
-            <div class="overview-mini-stat is-green"><span>top业务数据量</span><strong>${formatCompact(topBusinessVolume)}</strong></div>
-          </div>
-          <div class="overview-donut-card__chart"><canvas id="overview-business-chart"></canvas></div>
-        </article>
-      `;
+      .join("");
   }
 
   function renderOverviewDiagnostics(records) {
     renderOverviewDelaySummary(records);
+    renderOverviewQualityMonitoring(records);
     renderOverviewRiskTable(records);
     renderOverviewOnTimeVendors(records);
   }
@@ -727,16 +684,27 @@
             <td class="py-3 px-2 text-sm">${escapeHtml(row.name)}</td>
             <td class="py-3 px-2 text-sm text-gray-500">${escapeHtml(row.supplier)}</td>
             <td class="py-3 px-2 text-sm text-gray-500">${escapeHtml(row.dueAt)}</td>
-            <td class="py-3 px-2">${renderSupplierRiskBadge(row.risk)}</td>
+            <td class="py-3 px-2">${renderRiskTagSet(row)}</td>
           </tr>
         `
       )
       .join("");
   }
 
+  function renderOverviewQualityMonitoring(records) {
+    if (!els.overviewQualitySummary) return;
+    const rows = buildQualityMonitorRows(records);
+    const controllableCount = Math.max(records.length - rows.length, 0);
+    renderStateSummary(els.overviewQualitySummary, [
+      ["质量风险任务", formatInteger(rows.length), "is-red"],
+      ["质量风险率", formatPercent(safeRatio(rows.length, records.length)), "is-amber"],
+      ["质量可控", formatInteger(controllableCount), "is-blue"],
+    ]);
+  }
+
   function renderOverviewOnTimeVendors(records) {
     if (!els.overviewOnTimeVendors) return;
-    const rows = aggregateGroup(records, "供应商名称")
+    const onTimeRows = aggregateGroup(records, "供应商名称")
       .map(([name, items]) => {
         const dueFinished = items.filter((item) => item["按期状态"] === "按期" || item["按期状态"] === "超期");
         const delayedCount = dueFinished.filter((item) => item["按期状态"] === "超期").length;
@@ -745,28 +713,37 @@
       .filter((row) => row.delayedCount > 0)
       .sort((a, b) => b.delayedCount - a.delayedCount || a.onTimeRate - b.onTimeRate)
       .slice(0, 3);
-    if (!rows.length) {
+    const accuracyRows = buildSupplierAccuracyRows(records).filter((row) => row.riskCount > 0).slice(0, 3);
+    if (!onTimeRows.length && !accuracyRows.length) {
       els.overviewOnTimeVendors.innerHTML = "";
       return;
     }
     els.overviewOnTimeVendors.innerHTML = `
-      <div class="mini-rank-list__title">拉低按时率供应商</div>
+      ${renderSupplierRiskRank("拉低按时率供应商", onTimeRows, (row) => `${formatInteger(row.delayedCount)} 个延期 / 按时率 ${formatPercent(row.onTimeRate)}`)}
+      ${renderSupplierRiskRank("准确率风险供应商", accuracyRows, (row) => `${formatInteger(row.riskCount)} 个风险 / 准确率 ${formatPercent(row.accuracyRate)}`)}
+    `;
+    els.overviewOnTimeVendors.querySelectorAll("[data-supplier]").forEach((item) => {
+      item.addEventListener("click", () => drillToSupplier(item.getAttribute("data-supplier")));
+    });
+  }
+
+  function renderSupplierRiskRank(title, rows, detailRenderer) {
+    if (!rows.length) return "";
+    return `
+      <div class="mini-rank-list__title">${escapeHtml(title)}</div>
       <div class="mini-rank-list">
       ${rows
         .map(
           (row) => `
             <button class="mini-rank-item" type="button" data-supplier="${escapeHtml(row.name)}">
               <span>${escapeHtml(row.name)}</span>
-              <strong>${formatInteger(row.delayedCount)} 个延期 / 按时率 ${formatPercent(row.onTimeRate)}</strong>
+              <strong>${escapeHtml(detailRenderer(row))}</strong>
             </button>
           `
         )
         .join("")}
       </div>
     `;
-    els.overviewOnTimeVendors.querySelectorAll("[data-supplier]").forEach((item) => {
-      item.addEventListener("click", () => drillToSupplier(item.getAttribute("data-supplier")));
-    });
   }
 
   function renderStateSummary(container, cards) {
@@ -905,55 +882,107 @@
       return;
     }
 
+    destroySupplierCapacityCharts();
     els.supplierCapacityGrid.innerHTML = rows
       .map(
-        (row) => `
-          <article class="supplier-capacity-card supplier-capacity-card--${row.statusClass}${state.globalFilters.vendor === row.name ? ' supplier-capacity-card--active' : ''}" data-supplier="${escapeHtml(row.name)}">
-            <div class="supplier-capacity-card__head">
+        (row) => {
+          const chartId = `supplier-capacity-chart-${escapeHtml(row.id)}`;
+          return `
+          <article class="supplier-capacity-chart-card supplier-capacity-card--${row.statusClass}${state.globalFilters.vendor === row.name ? " supplier-capacity-card--active" : ""}" data-supplier="${escapeHtml(row.name)}">
+            <div class="supplier-capacity-chart-card__head">
               <div>
                 <strong>${escapeHtml(row.name)}</strong>
                 <span>${escapeHtml(row.specialties.join(" / "))}</span>
               </div>
               ${renderSupplierStatusBadge(row.status)}
             </div>
-            <div class="supplier-energy">
-              <div class="supplier-energy__meta">
-                <span>产能利用率</span>
-                <strong>${formatPercent(row.utilization)}</strong>
-              </div>
-              <div class="supplier-energy__track">
-                <span style="width:${Math.min(row.utilization * 100, 100)}%"></span>
-              </div>
+            <div class="supplier-capacity-chart-card__stats">
+              <span>日均预估 ${formatCompact(row.dailyEstimatedCapacity)}</span>
+              <span>近30天实际日均 ${formatCompact(row.recentActualDailyCapacity)}</span>
+              <span>利用率 ${formatPercent(row.utilization)}</span>
+              <span>准时率 ${formatPercent(row.onTimeRate)}</span>
+              <span>准确率 ${formatPercent(row.accuracyRate)}</span>
             </div>
-            <div class="supplier-capacity-card__stats">
-              <span>额定 ${formatCompact(row.monthlyCapacity)}</span>
-              <span>占用 ${formatCompact(row.occupiedCapacity)}</span>
-              <span>剩余 ${formatCompact(row.availableCapacity)}</span>
-              <span>准时 ${formatPercent(row.onTimeRate)}</span>
-            </div>
-            <div class="supplier-tag-section">
-              <span class="supplier-tag-section__label">能力标签</span>
-              <div class="supplier-tags">${renderSupplierTaskTags(row.capabilityTags)}</div>
-            </div>
-            <div class="supplier-capacity-card__foot">
-              <span>${formatInteger(row.currentTaskCount)} 个在接任务</span>
-              <span>${escapeHtml(row.earliestAvailableAt)}</span>
+            <div class="supplier-capacity-chart-card__canvas">
+              <canvas id="${chartId}"></canvas>
             </div>
           </article>
-        `
+        `;
+        }
       )
       .join("");
 
-    // Click to drill into a specific supplier
-    els.supplierCapacityGrid.querySelectorAll(".supplier-capacity-card").forEach((card) => {
-      card.addEventListener("click", (e) => {
-        if (e.target.closest("button, a, select, input")) return;
+    els.supplierCapacityGrid.querySelectorAll(".supplier-capacity-chart-card").forEach((card) => {
+      card.addEventListener("click", (event) => {
+        if (event.target.closest("button, a, select, input")) return;
         const name = card.getAttribute("data-supplier");
-        if (!name) return;
-        if (state.globalFilters.vendor === name) return;
+        if (!name || state.globalFilters.vendor === name) return;
         drillToSupplier(name);
       });
     });
+  }
+
+  function renderSupplierCapacityTrendCharts(rows, records) {
+    if (!els.supplierCapacityGrid) return;
+    destroySupplierCapacityCharts();
+    rows.forEach((row) => {
+      const canvas = document.getElementById(`supplier-capacity-chart-${row.id}`);
+      if (!canvas) return;
+      const chartRows = buildSupplierCapacityDailyRows(row, records);
+      if (!chartRows.length) return;
+      const ctx = canvas.getContext("2d");
+      chartInstances[`supplierCapacity-${row.id}`] = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: chartRows.map((item) => item.label),
+          datasets: [
+            {
+              label: "预估产能",
+              data: chartRows.map((item) => item.estimated),
+              borderColor: "#94a3b8",
+              backgroundColor: "#94a3b8",
+              borderDash: [6, 4],
+              borderWidth: 2,
+              pointRadius: 0,
+              tension: 0.35,
+            },
+            {
+              label: "实际产能",
+              data: chartRows.map((item) => item.actual),
+              borderColor: "#3b82f6",
+              backgroundColor: "rgba(59, 130, 246, 0.12)",
+              fill: true,
+              borderWidth: 2,
+              pointRadius: 2,
+              tension: 0.35,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            legend: { position: "top", align: "end", labels: { boxWidth: 12, usePointStyle: true } },
+            tooltip: {
+              callbacks: {
+                label: (context) => `${context.dataset.label}: ${formatCompact(context.parsed.y || 0)}`,
+              },
+            },
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { maxTicksLimit: 6 } },
+            y: { beginAtZero: true, grid: { borderDash: [4, 4] }, title: { display: true, text: "数据量/天" } },
+          },
+        },
+      });
+    });
+  }
+
+  function destroySupplierCapacityCharts() {
+    Object.keys(chartInstances)
+      .filter((key) => key.startsWith("supplierCapacity-"))
+      .forEach((key) => destroyChart(key));
   }
 
   function renderSupplierActiveTasks(rows) {
@@ -1044,40 +1073,6 @@
     return tags.slice(0, 4).map((tag) => `<span class="supplier-tag">${escapeHtml(tag)}</span>`).join("");
   }
 
-  // ===================== BUSINESS ANALYSIS =====================
-
-  function renderBusinessAnalysis(records) {
-    if (!els.businessKpiCards) return;
-    const rows = buildBusinessRows(records);
-    const totalAmount = sum(rows, (row) => row.amount);
-    const topVolume = rows[0];
-    const topCost = rows.slice().sort((a, b) => b.amount - a.amount)[0];
-    const topTasks = rows.slice().sort((a, b) => b.tasks - a.tasks)[0];
-
-    const cards = [
-      ["业务线数量", formatInteger(rows.length), "按费用承担部门统计"],
-      ["Top 数据量业务线", topVolume ? topVolume.name : "暂无", topVolume ? formatCompact(topVolume.volume) : "暂无数据"],
-      ["Top 成本业务线", topCost ? topCost.name : "暂无", topCost ? formatCurrency(topCost.amount) : "暂无数据"],
-      ["Top 任务数业务线", topTasks ? topTasks.name : "暂无", topTasks ? `${formatInteger(topTasks.tasks)} 个任务` : "暂无数据"],
-    ];
-
-    els.businessKpiCards.innerHTML = cards.map(renderCompactKpiCard).join("");
-    els.businessTable.innerHTML = rows
-      .map(
-        (row) => `
-          <tr class="border-b border-gray-100">
-            <td class="px-4 py-3 text-sm font-medium">${escapeHtml(row.name)}</td>
-            <td class="px-4 py-3 text-sm text-gray-500">${formatInteger(row.tasks)}</td>
-            <td class="px-4 py-3 text-sm text-gray-500">${formatCompact(row.volume)}</td>
-            <td class="px-4 py-3 text-sm text-gray-500">${formatCurrency(row.amount)}</td>
-            <td class="px-4 py-3 text-sm">${formatPercent(row.onTimeRate)}</td>
-            <td class="px-4 py-3 text-sm text-gray-500">${escapeHtml(row.topCategory || "缺失")} / ${escapeHtml(row.topSupplier || "缺失")}</td>
-          </tr>
-        `
-      )
-      .join("");
-  }
-
   // ===================== FINANCE =====================
 
   function renderFinanceBudget(records) {
@@ -1145,7 +1140,7 @@
         datasets: [
           {
             type: "line",
-            label: "下发数量",
+            label: "下发数据量",
             data: rows.map((r) => r.volume),
             borderColor: "#3b82f6",
             backgroundColor: "#3b82f6",
@@ -1224,100 +1219,41 @@
     });
   }
 
-  function renderChartOverviewStatusDistribution(records) {
-    const canvas = document.getElementById("overview-status-chart");
-    if (!canvas) return;
-    destroyChart("overviewStatus");
-    const rows = buildOverviewStatusRows(records);
-    if (!rows.length) return;
-    const ctx = canvas.getContext("2d");
-    chartInstances.overviewStatus = new Chart(ctx, {
-      type: "doughnut",
+  function renderChartOverviewQualityRiskRate(records) {
+    if (!els.overviewQualityChart) return;
+    destroyChart("overviewQuality");
+    const qualityRows = buildQualityMonitorRows(records);
+    const qualityRate = safeRatio(qualityRows.length, records.length) * 100;
+    const ctx = els.overviewQualityChart.getContext("2d");
+    chartInstances.overviewQuality = new Chart(ctx, {
+      type: "bar",
       data: {
-        labels: rows.map((row) => row.label),
+        labels: ["质量风险率"],
         datasets: [
           {
-            data: rows.map((row) => row.value),
-            backgroundColor: ["#4f73d9", "#7acb65", "#ffc340", "#ff5967", "#55bfd8", "#06a96f"],
-            borderColor: "#ffffff",
-            borderWidth: 4,
-            borderRadius: 8,
+            label: "质量风险率",
+            data: [qualityRate],
+            backgroundColor: "#8b5cf6",
+            borderRadius: 6,
+            barPercentage: 0.68,
           },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        cutout: "62%",
         plugins: {
-          legend: { position: "bottom", labels: { boxWidth: 12, usePointStyle: true } },
-          tooltip: { callbacks: { label: (context) => `${context.label}: ${formatInteger(context.parsed)} 个任务` } },
+          legend: { display: false },
+          tooltip: { callbacks: { label: (context) => `质量风险率 ${formatPercent((context.parsed.y || 0) / 100)}` } },
         },
-      },
-    });
-  }
-
-  function renderChartOverviewTaskTypeDistribution(records) {
-    const canvas = document.getElementById("overview-task-type-chart");
-    if (!canvas) return;
-    destroyChart("overviewTaskType");
-    const rows = buildOverviewTaskTypeRows(records);
-    if (!rows.length) return;
-    const ctx = canvas.getContext("2d");
-    chartInstances.overviewTaskType = new Chart(ctx, {
-      type: "doughnut",
-      data: {
-        labels: rows.map((row) => row.label),
-        datasets: [
-          {
-            data: rows.map((row) => row.value),
-            backgroundColor: ["#4f73d9", "#7acb65", "#ffc340", "#ff5967", "#55bfd8"],
-            borderColor: "#ffffff",
-            borderWidth: 4,
-            borderRadius: 8,
+        scales: {
+          x: { grid: { display: false } },
+          y: {
+            beginAtZero: true,
+            suggestedMax: Math.max(20, Math.ceil(qualityRate / 3) * 3),
+            grid: { borderDash: [4, 4] },
+            ticks: { callback: (value) => `${value}%` },
           },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: "62%",
-        plugins: {
-          legend: { position: "bottom", labels: { boxWidth: 12, usePointStyle: true } },
-          tooltip: { callbacks: { label: (context) => `${context.label}: ${formatCompact(context.parsed)} 数据量` } },
-        },
-      },
-    });
-  }
-
-  function renderChartOverviewBusinessDistribution(records) {
-    const canvas = document.getElementById("overview-business-chart");
-    if (!canvas) return;
-    destroyChart("overviewBusiness");
-    const rows = buildOverviewBusinessRows(records);
-    if (!rows.length) return;
-    const ctx = canvas.getContext("2d");
-    chartInstances.overviewBusiness = new Chart(ctx, {
-      type: "doughnut",
-      data: {
-        labels: rows.map((row) => row.label),
-        datasets: [
-          {
-            data: rows.map((row) => row.value),
-            backgroundColor: ["#4f73d9", "#7acb65", "#ffc340", "#ff5967", "#55bfd8"],
-            borderColor: "#ffffff",
-            borderWidth: 4,
-            borderRadius: 8,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: "62%",
-        plugins: {
-          legend: { position: "bottom", labels: { boxWidth: 12, usePointStyle: true } },
-          tooltip: { callbacks: { label: (context) => `${context.label}: ${formatCompact(context.parsed)} 数据量` } },
         },
       },
     });
@@ -1464,10 +1400,10 @@
       .filter((row) => row.label === "标注中")
       .reduce((total, row) => total + row.value, 0);
     renderStateSummary(els.taskDataStatusSummary, [
-      ["当前数据", formatCompact(sum(rows, (row) => row.value)), "is-blue"],
+      ["已交付数据", formatCompact(sum(rows, (row) => row.value)), "is-blue"],
       ["标注中数据", formatCompact(labelingData), ""],
       [
-        "活跃数据",
+        "审核中数据",
         formatCompact(
           rows
             .filter((row) => row.label !== "审核通过" && row.label !== "待审核")
@@ -1504,36 +1440,96 @@
     });
   }
 
+  function renderChartTaskStatusDistribution(records) {
+    if (!els.taskStatusChart) return;
+    destroyChart("taskStatus");
+
+    const rows = buildOverviewStatusRows(records);
+    if (!rows.length) return;
+    const total = sum(rows, (row) => row.value);
+    const leadingStatus = rows[0]?.label || "暂无";
+    const activeTasks = records.filter((item) => item["流程状态"] === "标注中" || item["流程状态"] === "审核中").length;
+    renderStateSummary(els.taskStatusSummary, [
+      ["当前任务", formatInteger(total), "is-blue"],
+      ["主导状态", leadingStatus, ""],
+      ["活跃任务", formatInteger(activeTasks), "is-green"],
+    ]);
+
+    renderDoughnutChart({
+      canvas: els.taskStatusChart,
+      chartKey: "taskStatus",
+      rows,
+      colors: ["#4f73d9", "#7acb65", "#ffc340", "#ff5967", "#55bfd8", "#06a96f"],
+      tooltipLabel: (context) => `${context.label}: ${formatInteger(context.parsed)} 个任务`,
+    });
+  }
+
   function renderChartTaskTypeDistribution(records) {
     if (!els.taskTypeChart) return;
     destroyChart("taskType");
 
-    const rows = aggregate(records, "任务类型", (items) => items.length).map((item) => ({
-      label: item.label,
-      value: item.value,
-    }));
+    const rows = buildOverviewTaskTypeRows(records);
     if (!rows.length) return;
+    renderStateSummary(els.taskTypeSummary, [
+      ["覆盖类型", formatInteger(rows.length), "is-blue"],
+      ["主力类型", rows[0]?.label || "暂无", ""],
+      ["top任务数据量", formatCompact(rows[0]?.value || 0), "is-green"],
+    ]);
 
-    const ctx = els.taskTypeChart.getContext("2d");
-    chartInstances.taskType = new Chart(ctx, {
-      type: "bar",
+    renderDoughnutChart({
+      canvas: els.taskTypeChart,
+      chartKey: "taskType",
+      rows,
+      colors: ["#4f73d9", "#7acb65", "#ffc340", "#ff5967", "#55bfd8"],
+      tooltipLabel: (context) => `${context.label}: ${formatCompact(context.parsed)} 数据量`,
+    });
+  }
+
+  function renderChartTaskBusinessDistribution(records) {
+    if (!els.taskBusinessChart) return;
+    destroyChart("taskBusiness");
+
+    const rows = buildOverviewBusinessRows(records);
+    if (!rows.length) return;
+    renderStateSummary(els.taskBusinessSummary, [
+      ["覆盖业务", formatInteger(rows.length), "is-blue"],
+      ["主力业务", rows[0]?.label || "暂无", ""],
+      ["top业务数据量", formatCompact(rows[0]?.value || 0), "is-green"],
+    ]);
+
+    renderDoughnutChart({
+      canvas: els.taskBusinessChart,
+      chartKey: "taskBusiness",
+      rows,
+      colors: ["#4f73d9", "#7acb65", "#ffc340", "#ff5967", "#55bfd8"],
+      tooltipLabel: (context) => `${context.label}: ${formatCompact(context.parsed)} 数据量`,
+    });
+  }
+
+  function renderDoughnutChart({ canvas, chartKey, rows, colors, tooltipLabel }) {
+    const ctx = canvas.getContext("2d");
+    chartInstances[chartKey] = new Chart(ctx, {
+      type: "doughnut",
       data: {
-        labels: rows.slice(0, 6).map((r) => r.label),
+        labels: rows.map((row) => row.label),
         datasets: [
           {
-            label: "任务数",
-            data: rows.slice(0, 6).map((r) => r.value),
-            backgroundColor: "#f59e0b",
-            borderRadius: 4,
+            data: rows.map((row) => row.value),
+            backgroundColor: colors,
+            borderColor: "#ffffff",
+            borderWidth: 4,
+            borderRadius: 8,
           },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        indexAxis: "y",
-        plugins: { legend: { display: false } },
-        scales: { x: { beginAtZero: true, grid: { borderDash: [4, 4] } }, y: { grid: { display: false } } },
+        cutout: "62%",
+        plugins: {
+          legend: { position: "bottom", labels: { boxWidth: 12, usePointStyle: true } },
+          tooltip: { callbacks: { label: tooltipLabel } },
+        },
       },
     });
   }
@@ -1620,94 +1616,6 @@
     });
   }
 
-  function renderChartBusinessCompare(records) {
-    if (!els.businessCompareChart) return;
-    destroyChart("businessCompare");
-
-    const rows = buildBusinessRows(records).slice(0, 6);
-    if (!rows.length) return;
-
-    const labels = rows.map((r) => r.name);
-    const ctx = els.businessCompareChart.getContext("2d");
-    chartInstances.businessCompare = new Chart(ctx, {
-      type: "line",
-      data: {
-        labels,
-        datasets: [
-          {
-            label: "数据量",
-            data: rows.map((r) => r.volume),
-            borderColor: "#3b82f6",
-            backgroundColor: "#3b82f6",
-            borderWidth: 2,
-            tension: 0.35,
-            pointRadius: 4,
-            yAxisID: "y",
-          },
-          {
-            label: "结算金额",
-            data: rows.map((r) => r.amount),
-            borderColor: "#f59e0b",
-            backgroundColor: "#f59e0b",
-            borderWidth: 2,
-            tension: 0.35,
-            pointRadius: 4,
-            yAxisID: "y1",
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: "top", align: "end", labels: { boxWidth: 12, usePointStyle: true } },
-        },
-        scales: {
-          x: { grid: { display: false } },
-          y: { beginAtZero: true, grid: { borderDash: [4, 4] }, title: { display: true, text: "数据量" } },
-          y1: { beginAtZero: true, position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "结算金额" } },
-        },
-      },
-    });
-  }
-
-  function renderChartBusinessTrend(records) {
-    if (!els.businessTrendChart) return;
-    destroyChart("businessTrend");
-
-    const businessRows = buildBusinessRows(records);
-    const topBusinessNames = businessRows.slice(0, 5).map((row) => row.name);
-    const months = uniqueValues(records.map((item) => item["创建月份"])).sort();
-    if (!months.length || !topBusinessNames.length) return;
-
-    const colors = topVendorRankColors;
-    const datasets = topBusinessNames.map((name, index) => ({
-      label: name,
-      data: months.map((month) =>
-        sum(
-          records.filter((item) => item["创建月份"] === month && item["费用承担部门"] === name),
-          (item) => numberValue(item["数据量"])
-        )
-      ),
-      borderColor: colors[index % colors.length],
-      backgroundColor: colors[index % colors.length],
-      tension: 0.3,
-      pointRadius: 3,
-    }));
-
-    const ctx = els.businessTrendChart.getContext("2d");
-    chartInstances.businessTrend = new Chart(ctx, {
-      type: "line",
-      data: { labels: months, datasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { position: "top", align: "end", labels: { boxWidth: 12, usePointStyle: true } } },
-        scales: { y: { beginAtZero: true, grid: { borderDash: [4, 4] } }, x: { grid: { display: false } } },
-      },
-    });
-  }
-
   function renderChartFinanceCompare(records) {
     if (!els.financeCompareChart) return;
     destroyChart("financeCompare");
@@ -1759,9 +1667,9 @@
         labels: rows.map((row) => row.label),
         datasets: [
           {
-            label: "月结算金额",
+            label: "月结算金额趋势",
             data: rows.map((row) => row.amount),
-            backgroundColor: "rgba(59, 130, 246, 0.24)",
+            backgroundColor: "rgb(47, 108, 206)",
             borderColor: "#3b82f6",
             borderWidth: 1,
             borderRadius: 6,
@@ -1772,6 +1680,47 @@
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true, grid: { borderDash: [4, 4] }, title: { display: true, text: "结算金额" } },
+        },
+      },
+    });
+  }
+
+  function renderChartFinanceBusinessSettlement(records) {
+    if (!els.financeBusinessChart) return;
+    destroyChart("financeBusiness");
+
+    const rows = buildBusinessRows(records)
+      .slice()
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 8);
+    if (!rows.length) return;
+
+    const ctx = els.financeBusinessChart.getContext("2d");
+    chartInstances.financeBusiness = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: rows.map((row) => row.name),
+        datasets: [
+          {
+            label: "结算金额",
+            data: rows.map((row) => row.amount),
+            backgroundColor: "#f59e0b",
+            borderColor: "#d97706",
+            borderWidth: 1,
+            borderRadius: 6,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (context) => `${context.label}: ${formatCurrency(context.parsed.y || 0)}` } },
+        },
         scales: {
           x: { grid: { display: false } },
           y: { beginAtZero: true, grid: { borderDash: [4, 4] }, title: { display: true, text: "结算金额" } },
@@ -1816,6 +1765,18 @@
   function renderSupplierRiskBadge(risk) {
     const mapping = { 正常: "is-done", 临期: "is-warning", 延期: "is-delayed" };
     return renderBadge(risk, mapping[risk] || "is-muted");
+  }
+
+  function renderQualityBadge(label) {
+    return renderBadge(label || "准确率低", "is-quality");
+  }
+
+  function renderRiskTagSet(row) {
+    const tags = [];
+    if (row.risk && row.risk !== "正常") tags.push(renderSupplierRiskBadge(row.risk));
+    if (row.qualitySignal) tags.push(renderQualityBadge(row.qualitySignal));
+    if (!tags.length) tags.push(renderSupplierRiskBadge("正常"));
+    return `<div class="risk-tag-set">${tags.join("")}</div>`;
   }
 
   function buildOverviewSummary(records) {
@@ -1995,6 +1956,7 @@
       .map((record, index) => {
         const delay = normalizeDelay(record);
         const remainingDays = calculateRemainingDaysFrom(record["要求交付日期"], dashboardData.meta?.generatedAt);
+        const qualitySignal = deriveQualitySignal(record, index, remainingDays);
         const risk =
           record["按期状态"] === "超期" || (delay !== null && delay > 0)
             ? "延期"
@@ -2008,12 +1970,37 @@
           supplier: record["供应商名称"] || "缺失",
           dueAt: record["要求交付日期"] || record["交付要求类型"] || "日清滚动",
           risk,
+          qualitySignal,
           remainingDaysValue: remainingDays === null ? 999 : remainingDays,
           amount: numberValue(record["预估金额_元"]),
         };
       })
-      .filter((row) => row.risk !== "正常")
-      .sort((a, b) => riskRank(b.risk) - riskRank(a.risk) || a.remainingDaysValue - b.remainingDaysValue || b.amount - a.amount);
+      .filter((row) => row.risk !== "正常" || row.qualitySignal)
+      .sort(
+        (a, b) =>
+          riskRank(b.risk) - riskRank(a.risk) ||
+          qualityRank(b.qualitySignal) - qualityRank(a.qualitySignal) ||
+          a.remainingDaysValue - b.remainingDaysValue ||
+          b.amount - a.amount
+      );
+  }
+
+  function buildQualityMonitorRows(records) {
+    return records
+      .map((record, index) => {
+        const remainingDays = calculateRemainingDaysFrom(record["要求交付日期"], dashboardData.meta?.generatedAt);
+        const qualitySignal = deriveQualitySignal(record, index, remainingDays);
+        return {
+          name: record["数据名"] || `任务 ${index + 1}`,
+          category: record["任务类别"] || "缺失",
+          qualitySignal,
+          remainingDaysValue: remainingDays === null ? 999 : remainingDays,
+          volume: numberValue(record["数据量"]),
+          amount: numberValue(record["预估金额_元"]),
+        };
+      })
+      .filter((row) => row.qualitySignal)
+      .sort((a, b) => qualityRank(b.qualitySignal) - qualityRank(a.qualitySignal) || a.remainingDaysValue - b.remainingDaysValue || b.volume - a.volume);
   }
 
   function buildBusinessRows(records) {
@@ -2149,11 +2136,18 @@
     const earliestAvailableAt = deriveEarliestAvailableAt(status, tasks);
     const recommendationScore = calculateSupplierRecommendationScore(profile, utilization, availableCapacity, risk);
     const capabilityTags = uniqueValues(profile.specialties.filter(Boolean));
+    const dailyEstimatedCapacity = profile.monthlyCapacity / 30;
+    const recentActualCapacity = calculateRecentSupplierActualCapacity(profile.name, records, 30);
+    const recentActualDailyCapacity = recentActualCapacity / 30;
+    const accuracyRate = calculateSupplierAccuracyRate(profile.name, records);
 
     return {
       id: `SP-${String(index + 1).padStart(3, "0")}`,
       name: profile.name,
       monthlyCapacity: profile.monthlyCapacity,
+      dailyEstimatedCapacity,
+      recentActualCapacity,
+      recentActualDailyCapacity,
       occupiedCapacity,
       availableCapacity,
       utilization,
@@ -2165,6 +2159,7 @@
       specialties: profile.specialties,
       capabilityTags,
       onTimeRate: profile.onTimeRate,
+      accuracyRate,
       recommendationScore,
       recommendationReason: buildSupplierRecommendationReason(profile, status, risk, availableCapacity),
       tasks,
@@ -2198,6 +2193,58 @@
 
   function isCurrentSupplierTask(record) {
     return record["是否完成"] !== "是" || record["流程状态"] !== "审核通过";
+  }
+
+  function buildSupplierCapacityDailyRows(row, records, dayCount = 30) {
+    const latestDate = getLatestRecordDate(records);
+    if (!latestDate) return [];
+    const startDate = new Date(latestDate);
+    startDate.setDate(startDate.getDate() - Math.max(dayCount - 1, 0));
+    const supplierRecords = records.filter((record) => record["供应商名称"] === row.name);
+    const actualByDay = supplierRecords.reduce((result, record) => {
+      const completedAt = String(record["实际完成时间"] || "").slice(0, 10);
+      const completedDate = parseDate(completedAt);
+      if (!completedDate || completedDate < startDate || completedDate > latestDate) return result;
+      result[completedAt] = (result[completedAt] || 0) + numberValue(record["数据量"]);
+      return result;
+    }, {});
+    const rows = [];
+    const cursor = new Date(startDate);
+    while (cursor <= latestDate) {
+      const dayKey = formatDateKey(cursor);
+      rows.push({
+        date: dayKey,
+        label: formatDayLabel(dayKey),
+        estimated: row.dailyEstimatedCapacity,
+        actual: actualByDay[dayKey] || 0,
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return rows;
+  }
+
+  function calculateRecentSupplierActualCapacity(name, records, dayCount = 30) {
+    return sum(buildSupplierCapacityDailyRows({ name, dailyEstimatedCapacity: 0 }, records, dayCount), (row) => row.actual);
+  }
+
+  function buildSupplierAccuracyRows(records) {
+    return aggregateGroup(records, "供应商名称")
+      .map(([name, items]) => {
+        const riskCount = items.filter((item, index) => deriveQualitySignal(item, index, calculateRemainingDaysFrom(item["要求交付日期"], dashboardData.meta?.generatedAt))).length;
+        return {
+          name,
+          taskCount: items.length,
+          riskCount,
+          accuracyRate: safeRatio(items.length - riskCount, items.length),
+        };
+      })
+      .filter((row) => row.taskCount > 0)
+      .sort((a, b) => b.riskCount - a.riskCount || a.accuracyRate - b.accuracyRate);
+  }
+
+  function calculateSupplierAccuracyRate(name, records) {
+    const row = buildSupplierAccuracyRows(records).find((item) => item.name === name);
+    return row ? row.accuracyRate : 1;
   }
 
   function deriveSupplierStatus(utilization) {
@@ -2328,8 +2375,24 @@
     els.supplierCapacityReset.classList.toggle("hidden", !isFiltered);
   }
 
+  function deriveQualitySignal(record, index = 0, remainingDays = null) {
+    const text = `${record["数据名"] || ""} ${record["任务类别"] || ""} ${record["任务类型"] || ""}`;
+    const status = record["流程状态"] || deriveBatchStatus(record, normalizeDelay(record));
+    const progress = Number(record["标注进度"]) || deriveProgress(status, index);
+    const isQualityTask = /质检|质量|回扫|返工|巡检|badcase/i.test(text);
+    if (status === "已驳回") return "复核异常";
+    if (isQualityTask) return "准确率低";
+    if (status === "审核中" && progress < 75) return "准确率低";
+    if (status === "标注中" && remainingDays !== null && remainingDays <= 2 && progress < 50) return "返工风险";
+    return "";
+  }
+
   function riskRank(risk) {
     return { 正常: 0, 临期: 1, 延期: 2 }[risk] || 0;
+  }
+
+  function qualityRank(signal) {
+    return { "": 0, 返工风险: 2, 准确率低: 3, 复核异常: 4 }[signal || ""] || 0;
   }
 
   function calculateDayDiff(startAt, endAt) {
@@ -2360,6 +2423,13 @@
     const date = parseDate(dateText);
     if (!date) return dateText;
     return `${date.getMonth() + 1}/${date.getDate()}`;
+  }
+
+  function formatDateKey(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   }
 
   function average(values) {
